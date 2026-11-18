@@ -118,7 +118,13 @@ fun PantallaTareas(vm: TareasViewModel) {
                 }
                 when (val p = primos) {
                     PrimosUi.Inicial -> Text("Escribe N y pulsa Contar")
-                    PrimosUi.Calculando -> Text("Calculando...")
+                    is PrimosUi.Calculando -> {
+                        LinearProgressIndicator(
+                            progress = { p.progreso },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text("Calculando... ${(p.progreso * 100).toInt()} %")
+                    }
                     PrimosUi.Cancelado -> Text("Cancelado")
                     is PrimosUi.Listo -> Recuadro(
                         "Hay ${p.cantidad} números primos\nTiempo: ${p.milisegundos} ms",

@@ -35,12 +35,19 @@ class TareasRepositoryLocal : TareasRepository {
     }
 
     // Paso 5: cálculo pesado en Dispatchers.Default (hilos pensados para CPU)
-    override suspend fun contarPrimos(hasta: Int): Int = withContext(Dispatchers.Default) {
+    override suspend fun contarPrimos(
+        hasta: Int,
+        alAvanzar: (Float) -> Unit
+    ): Int = withContext(Dispatchers.Default) {
         var cantidad = 0
+        // Mejora IA: se avisa cada 1 % para no saturar la UI con millones de actualizaciones
+        val paso = maxOf(1, hasta / 100)
         for (n in 2..hasta) {
             ensureActive() // si cancelaron el Job, se detiene aquí
             if (esPrimo(n)) cantidad++
+            if (n % paso == 0) alAvanzar(n.toFloat() / hasta)
         }
+        alAvanzar(1f)
         cantidad
     }
 
