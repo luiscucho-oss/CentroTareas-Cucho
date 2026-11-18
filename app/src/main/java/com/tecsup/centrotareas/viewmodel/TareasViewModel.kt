@@ -91,36 +91,49 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
     private val _carga = MutableStateFlow<CargaUi>(CargaUi.Inicial)
     val carga: StateFlow<CargaUi> = _carga.asStateFlow()
 
+    // Paso 7: interruptor para simular que los pedidos fallan
+    private val _simularError = MutableStateFlow(false)
+    val simularError: StateFlow<Boolean> = _simularError.asStateFlow()
+
+    fun cambiarSimularError(valor: Boolean) {
+        _simularError.value = valor
+    }
+
     // Paso 6: una por una = 2 s + 3 s ≈ 5 s
-    fun cargarUnaPorUna() {
-        if (_carga.value is CargaUi.Cargando) return
-        viewModelScope.launch {
-            _carga.value = CargaUi.Cargando
-            val inicio = System.currentTimeMillis()
-            val perfil = repo.cargarPerfil()
-            val pedidos = repo.cargarPedidos(false)
-            _carga.value = CargaUi.Exito(
-                "Una por una", perfil, pedidos.size, System.currentTimeMillis() - inicio
-            )
-        }
+    fun cargarUnaPorUna() = cargar("Una por una") {
+        val perfil = repo.cargarPerfil()
+        val pedidos = repo.cargarPedidos(_simularError.value)
+        Pair(perfil, pedidos)
     }
 
     // Paso 6: a la vez = máximo(2 s, 3 s) ≈ 3 s
-    fun cargarALaVez() {
+    fun cargarALaVez() = cargar("A la vez") {
+        coroutineScope {
+            val a = async { repo.cargarPerfil() }
+            val b = async { repo.cargarPedidos(_simularError.value) }
+            Pair(a.await(), b.await())
+        }
+    }
+
+    // Paso 7: Reintentar vuelve a ejecutar la carga A la vez
+    fun reintentar() = cargarALaVez()
+
+    // Estado Cargando, mide el tiempo y convierte cualquier fallo en Error
+    private fun cargar(modo: String, bloque: suspend () -> Pair<String, List<String>>) {
         if (_carga.value is CargaUi.Cargando) return
         viewModelScope.launch {
             _carga.value = CargaUi.Cargando
             val inicio = System.currentTimeMillis()
-            val (perfil, pedidos) = coroutineScope {
-                val a = async { repo.cargarPerfil() }
-                val b = async { repo.cargarPedidos(false) }
-                Pair(a.await(), b.await())
+            try {
+                val (perfil, pedidos) = bloque()
+                _carga.value = CargaUi.Exito(
+                    modo, perfil, pedidos.size, System.currentTimeMillis() - inicio
+                )
+            } catch (e: CancellationException) {
+                throw e // la cancelación no es un error: se deja pasar
+            } catch (e: Exception) {
+                _carga.value = CargaUi.Error("No se pudo cargar: ${e.message}")
             }
-            _carga.value = CargaUi.Exito(
-                "A la vez", perfil, pedidos.size, System.currentTimeMillis() - inicio
-            )
         }
     }
-
-    // TODO Paso 7: simularError y manejo de errores
 }

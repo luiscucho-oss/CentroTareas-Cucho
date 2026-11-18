@@ -13,6 +13,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -21,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -53,6 +55,7 @@ fun PantallaTareas(vm: TareasViewModel) {
     var toques by rememberSaveable { mutableIntStateOf(0) }
     val primos by vm.primos.collectAsStateWithLifecycle()
     val carga by vm.carga.collectAsStateWithLifecycle()
+    val simularError by vm.simularError.collectAsStateWithLifecycle()
     var textoN by rememberSaveable { mutableStateOf("$N_POR_DEFECTO") }
 
     Scaffold(
@@ -134,6 +137,17 @@ fun PantallaTareas(vm: TareasViewModel) {
                         Text("A la vez")
                     }
                 }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Switch(
+                        checked = simularError,
+                        onCheckedChange = vm::cambiarSimularError,
+                        enabled = !cargando
+                    )
+                    Text("Simular error")
+                }
                 when (val c = carga) {
                     CargaUi.Inicial -> Text("Elige cómo cargar el perfil y los pedidos")
                     CargaUi.Cargando -> Row(
@@ -149,7 +163,18 @@ fun PantallaTareas(vm: TareasViewModel) {
                         fondo = VerdeClaro,
                         texto = Verde
                     )
-                    is CargaUi.Error -> Text(c.mensaje)
+                    is CargaUi.Error -> Recuadro(
+                        c.mensaje,
+                        fondo = MaterialTheme.colorScheme.errorContainer,
+                        texto = MaterialTheme.colorScheme.onErrorContainer
+                    ) {
+                        Button(
+                            onClick = { vm.reintentar() },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            )
+                        ) { Text("Reintentar") }
+                    }
                 }
             }
         }
