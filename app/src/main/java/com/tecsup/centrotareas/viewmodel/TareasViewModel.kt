@@ -8,12 +8,14 @@ import com.tecsup.centrotareas.model.CargaUi
 import com.tecsup.centrotareas.model.PrimosUi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 
 class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
 
@@ -94,6 +96,14 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
         _simularError.value = valor
     }
 
+    // Mejora IA: si está activo, una carga que pase de 2 s se corta con withTimeout
+    private val _limitarTiempo = MutableStateFlow(false)
+    val limitarTiempo: StateFlow<Boolean> = _limitarTiempo.asStateFlow()
+
+    fun cambiarLimitarTiempo(valor: Boolean) {
+        _limitarTiempo.value = valor
+    }
+
     // Paso 6: una por una = 2 s + 3 s ≈ 5 s
     fun cargarUnaPorUna() = cargar("Una por una") {
         val perfil = repo.cargarPerfil()
@@ -120,10 +130,16 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
             _carga.value = CargaUi.Cargando
             val inicio = System.currentTimeMillis()
             try {
-                val (perfil, pedidos) = bloque()
+                val (perfil, pedidos) =
+                    if (_limitarTiempo.value) withTimeout(TIEMPO_MAXIMO_MS) { bloque() }
+                    else bloque()
                 _carga.value = CargaUi.Exito(
                     modo, perfil, pedidos.size, System.currentTimeMillis() - inicio
                 )
+            } catch (e: TimeoutCancellationException) {
+                // Va ANTES que CancellationException porque es una subclase suya:
+                // si no, el tiempo agotado se relanzaría como una cancelación normal
+                _carga.value = CargaUi.Error("Tardó demasiado (más de ${TIEMPO_MAXIMO_MS / 1000} s)")
             } catch (e: CancellationException) {
                 throw e // la cancelación no es un error: se deja pasar
             } catch (e: Exception) {
@@ -132,3 +148,5 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
         }
     }
 }
+
+private const val TIEMPO_MAXIMO_MS = 2000L

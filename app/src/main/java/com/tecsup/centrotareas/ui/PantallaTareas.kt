@@ -56,6 +56,7 @@ fun PantallaTareas(vm: TareasViewModel) {
     val primos by vm.primos.collectAsStateWithLifecycle()
     val carga by vm.carga.collectAsStateWithLifecycle()
     val simularError by vm.simularError.collectAsStateWithLifecycle()
+    val limitarTiempo by vm.limitarTiempo.collectAsStateWithLifecycle()
     var textoN by rememberSaveable { mutableStateOf("$N_POR_DEFECTO") }
 
     Scaffold(
@@ -153,6 +154,17 @@ fun PantallaTareas(vm: TareasViewModel) {
                         enabled = !cargando
                     )
                     Text("Simular error")
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Switch(
+                        checked = limitarTiempo,
+                        onCheckedChange = vm::cambiarLimitarTiempo,
+                        enabled = !cargando
+                    )
+                    Text("Tiempo máximo 2 s")
                 }
                 when (val c = carga) {
                     CargaUi.Inicial -> Text("Elige cómo cargar el perfil y los pedidos")
