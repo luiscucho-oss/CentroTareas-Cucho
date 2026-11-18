@@ -1,12 +1,27 @@
 package com.tecsup.centrotareas.data
 
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import java.io.IOException
 
 class TareasRepositoryLocal : TareasRepository {
+
+    // Mejora IA: el trabajo simulado vive en el Repository y el ViewModel solo lo recolecta.
+    // flowOn cambia el hilo de todo lo que está arriba (el bloque flow) a Dispatchers.Default;
+    // el collect sigue en el hilo de quien recolecta (main).
+    override fun tareaConProgreso(): Flow<Float> = flow {
+        Log.d("HILO", "Dentro: ${Thread.currentThread().name}")
+        for (i in 1..100) {
+            delay(40) // delay revisa la cancelación en cada vuelta
+            emit(i / 100f)
+        }
+    }.flowOn(Dispatchers.Default)
 
     override suspend fun cargarPerfil(): String {
         delay(2000)

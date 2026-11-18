@@ -26,6 +26,11 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    // android.util.Log devuelve valores por defecto en las pruebas unitarias de la JVM
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
+
     buildFeatures {
         compose = true
     }

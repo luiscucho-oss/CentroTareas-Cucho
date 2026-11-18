@@ -7,16 +7,13 @@ import com.tecsup.centrotareas.data.TareasRepository
 import com.tecsup.centrotareas.model.CargaUi
 import com.tecsup.centrotareas.model.PrimosUi
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
 
@@ -33,7 +30,7 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
     private val _corriendo = MutableStateFlow(false)
     val corriendo: StateFlow<Boolean> = _corriendo.asStateFlow()
 
-    // Pasos 2 a 4: la espera va en segundo plano y el hilo principal queda libre
+    // Pasos 2 a 4: el trabajo va en segundo plano y el hilo principal queda libre
     fun tareaLarga() {
         if (_corriendo.value) return
         _corriendo.value = true
@@ -42,13 +39,8 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
                 _progreso.value = 0f
                 _mensaje.value = "Trabajando..."
                 Log.d("HILO", "Antes: ${Thread.currentThread().name}")
-                withContext(Dispatchers.Default) {
-                    Log.d("HILO", "Dentro: ${Thread.currentThread().name}")
-                    for (i in 1..100) {
-                        delay(40) // delay revisa la cancelación en cada vuelta
-                        _progreso.value = i / 100f
-                    }
-                }
+                // Mejora IA: el progreso llega desde el Repository como Flow
+                repo.tareaConProgreso().collect { _progreso.value = it }
                 Log.d("HILO", "Despues: ${Thread.currentThread().name}")
                 _mensaje.value = "Terminó"
             } finally {
