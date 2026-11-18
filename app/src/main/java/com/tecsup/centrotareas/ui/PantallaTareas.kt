@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -23,6 +24,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -40,6 +43,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.tecsup.centrotareas.model.CargaUi
+import com.tecsup.centrotareas.model.ComparacionTiempos
 import com.tecsup.centrotareas.model.PrimosUi
 import com.tecsup.centrotareas.ui.theme.Verde
 import com.tecsup.centrotareas.ui.theme.VerdeClaro
@@ -57,6 +61,7 @@ fun PantallaTareas(vm: TareasViewModel) {
     val carga by vm.carga.collectAsStateWithLifecycle()
     val simularError by vm.simularError.collectAsStateWithLifecycle()
     val limitarTiempo by vm.limitarTiempo.collectAsStateWithLifecycle()
+    val comparacion by vm.comparacion.collectAsStateWithLifecycle()
     var textoN by rememberSaveable { mutableStateOf("$N_POR_DEFECTO") }
 
     Scaffold(
@@ -195,6 +200,9 @@ fun PantallaTareas(vm: TareasViewModel) {
                     }
                 }
             }
+            Tarjeta("Comparación de tiempos") {
+                TablaComparacion(comparacion, onLimpiar = vm::limpiarComparacion)
+            }
         }
     }
 }
@@ -237,4 +245,51 @@ private fun Recuadro(
         Text(mensaje, color = texto, fontWeight = FontWeight.Medium)
         acciones()
     }
+}
+
+// Mejora IA: tabla que acumula los tiempos de cada modo
+@Composable
+private fun TablaComparacion(c: ComparacionTiempos, onLimpiar: () -> Unit) {
+    if (c.unaPorUna.isEmpty() && c.aLaVez.isEmpty()) {
+        Text("Haz cargas de los dos modos para comparar sus tiempos")
+        return
+    }
+    Row(Modifier.fillMaxWidth()) {
+        Celda("Modo", 1.4f, negrita = true)
+        Celda("Veces", 0.8f, negrita = true)
+        Celda("Último", 1f, negrita = true)
+        Celda("Promedio", 1f, negrita = true)
+    }
+    HorizontalDivider()
+    FilaModo("Una por una", c.unaPorUna, c.promedioUnaPorUna)
+    FilaModo("A la vez", c.aLaVez, c.promedioALaVez)
+    c.ahorro?.let { ahorro ->
+        val porcentaje = ahorro * 100 / (c.promedioUnaPorUna ?: 1L).coerceAtLeast(1L)
+        Recuadro(
+            "A la vez ahorra $ahorro ms en promedio ($porcentaje %)",
+            fondo = VerdeClaro,
+            texto = Verde
+        )
+    }
+    TextButton(onClick = onLimpiar) { Text("Limpiar") }
+}
+
+@Composable
+private fun FilaModo(modo: String, tiempos: List<Long>, promedio: Long?) {
+    Row(Modifier.fillMaxWidth()) {
+        Celda(modo, 1.4f)
+        Celda("${tiempos.size}", 0.8f)
+        Celda(tiempos.lastOrNull()?.let { "$it ms" } ?: "—", 1f)
+        Celda(promedio?.let { "$it ms" } ?: "—", 1f)
+    }
+}
+
+@Composable
+private fun RowScope.Celda(texto: String, peso: Float, negrita: Boolean = false) {
+    Text(
+        texto,
+        modifier = Modifier.weight(peso),
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = if (negrita) FontWeight.Bold else null
+    )
 }

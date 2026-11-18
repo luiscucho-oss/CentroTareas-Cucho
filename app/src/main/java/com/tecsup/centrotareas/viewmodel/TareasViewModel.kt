@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tecsup.centrotareas.data.TareasRepository
 import com.tecsup.centrotareas.model.CargaUi
+import com.tecsup.centrotareas.model.ComparacionTiempos
 import com.tecsup.centrotareas.model.PrimosUi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -14,6 +15,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 
@@ -88,6 +90,14 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
     private val _carga = MutableStateFlow<CargaUi>(CargaUi.Inicial)
     val carga: StateFlow<CargaUi> = _carga.asStateFlow()
 
+    // Mejora IA: historial de tiempos por modo (solo cargas exitosas)
+    private val _comparacion = MutableStateFlow(ComparacionTiempos())
+    val comparacion: StateFlow<ComparacionTiempos> = _comparacion.asStateFlow()
+
+    fun limpiarComparacion() {
+        _comparacion.value = ComparacionTiempos()
+    }
+
     // Paso 7: interruptor para simular que los pedidos fallan
     private val _simularError = MutableStateFlow(false)
     val simularError: StateFlow<Boolean> = _simularError.asStateFlow()
@@ -105,14 +115,14 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
     }
 
     // Paso 6: una por una = 2 s + 3 s ≈ 5 s
-    fun cargarUnaPorUna() = cargar("Una por una") {
+    fun cargarUnaPorUna() = cargar(MODO_UNA_POR_UNA) {
         val perfil = repo.cargarPerfil()
         val pedidos = repo.cargarPedidos(_simularError.value)
         Pair(perfil, pedidos)
     }
 
     // Paso 6: a la vez = máximo(2 s, 3 s) ≈ 3 s
-    fun cargarALaVez() = cargar("A la vez") {
+    fun cargarALaVez() = cargar(MODO_A_LA_VEZ) {
         coroutineScope {
             val a = async { repo.cargarPerfil() }
             val b = async { repo.cargarPedidos(_simularError.value) }
@@ -133,9 +143,12 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
                 val (perfil, pedidos) =
                     if (_limitarTiempo.value) withTimeout(TIEMPO_MAXIMO_MS) { bloque() }
                     else bloque()
-                _carga.value = CargaUi.Exito(
-                    modo, perfil, pedidos.size, System.currentTimeMillis() - inicio
-                )
+                val ms = System.currentTimeMillis() - inicio
+                _carga.value = CargaUi.Exito(modo, perfil, pedidos.size, ms)
+                _comparacion.update {
+                    if (modo == MODO_UNA_POR_UNA) it.copy(unaPorUna = it.unaPorUna + ms)
+                    else it.copy(aLaVez = it.aLaVez + ms)
+                }
             } catch (e: TimeoutCancellationException) {
                 // Va ANTES que CancellationException porque es una subclase suya:
                 // si no, el tiempo agotado se relanzaría como una cancelación normal
@@ -150,3 +163,5 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
 }
 
 private const val TIEMPO_MAXIMO_MS = 2000L
+private const val MODO_UNA_POR_UNA = "Una por una"
+private const val MODO_A_LA_VEZ = "A la vez"
