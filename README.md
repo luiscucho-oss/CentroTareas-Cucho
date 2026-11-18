@@ -122,3 +122,27 @@ La guía es de años anteriores. Se usaron las versiones estables actuales:
 | `LinearProgressIndicator` | `progress = progreso` | `progress = { progreso }` | La firma con `Float` está obsoleta en Material 3 |
 | Android Gradle Plugin | — | 9.4.1 (Kotlin integrado) | Ya no hace falta el plugin `kotlin-android` |
 | compileSdk / targetSdk | — | 37 | SDK instalado |
+
+## Fase 2 · Mejoras con IA (rama `mejora-ia`)
+
+| Mejora | Qué hace | Capas |
+|---|---|---|
+| Progreso desde el Repository | `tareaConProgreso(): Flow<Float>` con `flow { emit() }` y `flowOn(Dispatchers.Default)`; el ViewModel solo recolecta | Repository + ViewModel |
+| Primos con progreso | `contarPrimos(hasta, alAvanzar)` avisa cada 1 %; `PrimosUi.Calculando(progreso)` muestra barra y % | Repository + ViewModel + View |
+| Tiempo máximo | Interruptor «Tiempo máximo 2 s»: `withTimeout(2000)` corta la carga y muestra «Tardó demasiado» | ViewModel + View |
+| Comparación de tiempos | Tarjeta con tabla de veces, último y promedio de cada modo, más el ahorro de A la vez | Model + ViewModel + View |
+
+| Primos con progreso | Comparación de tiempos |
+|---|---|
+| ![Primos con progreso](capturas/07-primos-progreso.png) | ![Comparación](capturas/08-comparacion.png) |
+
+El detalle de los prompts, lo que respondió la IA y lo que se revisó está en [PROMPTS.md](PROMPTS.md).
+
+### Pruebas
+
+```bash
+./gradlew testDebugUnitTest
+```
+
+- `TareasRepositoryLocalTest`: valores de referencia de los primos.
+- `TareasViewModelTest`: 9 pruebas con tiempo virtual (`runTest` + `StandardTestDispatcher`). Comprueban que Una por una tarda 5000 ms, A la vez 3000 ms y el timeout corta a los 2000 ms; también cubren cancelar, error + reintentar, la comparación y los primos reales.
